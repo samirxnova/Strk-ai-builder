@@ -13,4 +13,4 @@ export type TVulnerability = {
 
 export type TVulnerabilitySeverity = 'High' | 'Medium' | 'Low';
 
-export type TContractType = 'Token' | 'NFT' | 'Edition' | 'Vault' | 'Marketplace' | 'Exchange';
+export type TContractType = 'Token' | 'NFT' | 'Edition' | 'Vault'| 'Exchange';
