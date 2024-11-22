@@ -3,9 +3,21 @@ import { ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemp
 import { ChatOpenAI } from '@langchain/openai';
 
 export function buildResolverAgent() {
-  const systemMsg =
-    'Your task is to resolve compiler errors from the provided code. You must generate complete smart contract code exclusively without any explanatory or conversational text. You must not change any other parts of the code that are not related to solving the compiler error. You must provide back full code that compiles, not only the parts that need to be fixed.';
-  const question = `Resolve the compiler error "{compilerError}" from the following code: \n {code}`;
+  // Improved system message with more specific instructions
+  const systemMsg = `
+    Your task is to resolve compiler errors in the provided smart contract code.
+    - Only address the part of the code causing the compiler error.
+    - Ensure the final output is valid code that compiles without any additional explanations or conversational text.
+    - Do not modify any part of the code that is unrelated to fixing the compiler error.
+    - Return the full code, including the unmodified parts, with the error resolved.
+  `;
+
+  // Clear question prompt with focus on compiler error and full code resolution
+  const question = `
+    Resolve the following compiler error: "{compilerError}"
+    From the provided smart contract code: 
+    {code}
+  `;
 
   const prompt = new ChatPromptTemplate({
     promptMessages: [
@@ -14,12 +26,15 @@ export function buildResolverAgent() {
     ],
     inputVariables: ['code', 'compilerError'],
   });
+
   const llm = new ChatOpenAI({
     openAIApiKey: process.env.OPENAI_API_KEY,
     modelName: 'gpt-4-1106-preview',
-    temperature: 0.2,
+    temperature: 0.2,  // Lower temperature for more deterministic output
+    max_tokens: 1500,  // Max tokens to ensure full code is returned
     modelKwargs: { seed: 1337 },
   });
 
+  // Return the prompt piped to the LLM with a StringOutputParser to handle structured output
   return prompt.pipe(llm).pipe(new StringOutputParser());
 }
