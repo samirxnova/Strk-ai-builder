@@ -23,7 +23,7 @@ export default function PromptSection({
     <SectionContainer>
       <h3 className='text-xl font-semibold md:text-2xl lg:text-3xl'>Describe Customisation</h3>
       <h4 className='text-base font-medium text-muted-foreground md:text-lg'>
-        Choose customisation to add into your {chainsName} project
+        Choose customisation to add into your Starknet project
       </h4>
 
       <div className='relative'>
@@ -32,7 +32,7 @@ export default function PromptSection({
           placeholder={
             predefinedPrompts && predefinedPrompts.length > 0
               ? `i. e. ${predefinedPrompts[0].description}`
-              : `Type the customisations for your ${chainsName} Smart Contract`
+              : `Type the customisations for your cairo Smart Contract`
           }
           className='mt-5 h-60 w-full resize-none rounded-3xl p-5 placeholder:italic'
           onChange={(event) => setUserPrompt(event.target.value)}
