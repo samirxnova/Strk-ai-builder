@@ -19,40 +19,45 @@ interface IContractCreationSteps {
 
 export default function ContractCreationSteps({ steps }: IContractCreationSteps) {
   return (
-    <ul className='flex gap-x-5'>
-      {steps.map((step) => (
-        <li key={step.number} className='flex flex-col items-center justify-center gap-y-1.5'>
+    <ul className='flex flex-col items-start gap-5 md:flex-row md:items-center'>
+      {steps.map((step, index) => (
+        <li key={step.number} className='relative flex flex-col items-center justify-center gap-y-2'>
           <div
             className={cn(
-              'relative flex h-7 w-7 items-center justify-center rounded-full bg-secondary p-1',
+              'relative flex h-10 w-10 items-center justify-center rounded-full border-2 border-secondary bg-secondary text-sm font-bold transition-colors',
               {
-                'bg-primary text-primary-foreground': step.isSuccess,
-                'bg-destructive text-destructive-foreground': step.isError
+                'bg-primary text-primary-foreground border-primary': step.isSuccess,
+                'bg-destructive text-destructive-foreground border-destructive': step.isError,
+                'text-muted-foreground': !step.isSuccess && !step.isError && !step.isLoading
               }
             )}
           >
             {step.isLoading ? (
-              <Loader2 className='h-7 w-7 animate-spin ' />
+              <Loader2 className='h-6 w-6 animate-spin' />
             ) : step.isSuccess ? (
-              <Check className='h-5 w-5' />
+              <Check className='h-6 w-6' />
             ) : step.isError ? (
-              <X className='h-5 w-5' />
+              <X className='h-6 w-6' />
             ) : (
               <span>{step.number}</span>
             )}
-
-            {step.isStepConnected && (
-              <span
-                className={cn('absolute left-[7px] -z-[1] h-1 w-24 bg-secondary', {
-                  'bg-primary text-primary-foreground': step.isSuccess,
-                  'bg-destructive text-destructive-foreground': step.isError
-                })}
-              />
-            )}
           </div>
-          <span className='text-xs font-medium text-muted-foreground md:text-base'>
+
+          <span className='text-center text-sm font-medium text-muted-foreground md:text-base'>
             {step.step}
           </span>
+
+          {step.isStepConnected && index < steps.length - 1 && (
+            <span
+              className={cn(
+                'absolute top-1/2 left-10 h-1 w-16 md:w-24 -translate-y-1/2 bg-secondary transition-colors',
+                {
+                  'bg-primary': steps[index + 1]?.isSuccess,
+                  'bg-destructive': steps[index + 1]?.isError
+                }
+              )}
+            />
+          )}
         </li>
       ))}
     </ul>
