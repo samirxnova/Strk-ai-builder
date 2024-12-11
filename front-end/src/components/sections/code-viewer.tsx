@@ -28,7 +28,7 @@ export default function CodeViewerSection({
       await copyToClipboard(smartContractCode);
       toast.success('Copied to clipboard!');
     } catch {
-      toast.error('Failed to copy!');
+      toast.error('Failed to copy code!');
     }
   };
 
@@ -41,7 +41,7 @@ export default function CodeViewerSection({
       );
       toast.success('File downloaded successfully!');
     } catch {
-      toast.error('Failed to download file!');
+      toast.error('Failed to download the file!');
     }
   };
 
@@ -57,7 +57,11 @@ export default function CodeViewerSection({
       </div>
 
       <div className="relative">
-        <SyntaxHighlighter language="solidity" style={dracula} className="mt-5 h-96 w-full rounded-3xl">
+        <SyntaxHighlighter
+          language="solidity"
+          style={dracula}
+          className="mt-5 h-96 w-full rounded-3xl"
+        >
           {smartContractCode}
         </SyntaxHighlighter>
 
