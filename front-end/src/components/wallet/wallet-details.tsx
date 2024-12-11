@@ -28,9 +28,8 @@ interface IWalletDetails extends ButtonProperties {
 }
 
 function getExplorerLink(isMainnet: boolean, address: string) {
-  return isMainnet
-    ? `https://starkscan.co/contract/${address}`
-    : `https://testnet.starkscan.co/contract/${address}`;
+  const baseUrl = isMainnet ? 'https://starkscan.co' : 'https://testnet.starkscan.co';
+  return `${baseUrl}/contract/${address}`;
 }
 
 export function WalletDetails({
@@ -43,25 +42,25 @@ export function WalletDetails({
 }: IWalletDetails) {
   const { toast } = useToast();
 
-  const displayAddress = address.slice(0, 8) + '...' + address.slice(-8);
+  const displayAddress = `${address.slice(0, 6)}...${address.slice(-6)}`;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button {...buttonProperties}>{displayAddress}</Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className='w-56'>
-        <DropdownMenuLabel>Connected wallet details</DropdownMenuLabel>
+      <DropdownMenuContent className='w-64'>
+        <DropdownMenuLabel>Connected Wallet Details</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuLabel>
-            <div className='flex gap-x-2.5'>
+            <div className='flex justify-between'>
               <span>Wallet:</span>
               <span className='text-muted-foreground'>{walletName}</span>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuLabel>
-            <div className='flex gap-x-2.5'>
+            <div className='flex justify-between'>
               <span>Network:</span>
               <span className='text-muted-foreground'>
                 {isMainnet ? ENetwoks.mainnet : ENetwoks.testnet}
@@ -82,7 +81,7 @@ export function WalletDetails({
           }}
         >
           <ExternalLink className='mr-2 h-4 w-4' />
-          <span>View on explorer</span>
+          <span>View on Explorer</span>
         </DropdownMenuItem>
         {isClipboardApiSupported && (
           <DropdownMenuItem
@@ -90,13 +89,13 @@ export function WalletDetails({
               await copyToClipboard(address);
 
               toast({
-                title: 'Copied to clipboard',
-                description: 'Address copied successfully!'
+                title: 'Copied to Clipboard',
+                description: 'Wallet address copied successfully!'
               });
             }}
           >
             <ClipboardCopy className='mr-2 h-4 w-4' />
-            <span>Copy address</span>
+            <span>Copy Address</span>
           </DropdownMenuItem>
         )}
         <DropdownMenuItem
