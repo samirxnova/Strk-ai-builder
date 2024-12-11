@@ -8,10 +8,10 @@ interface IWalletConnect extends ButtonProperties {
   onWalletConnect: () => void;
 }
 
-export function WalletConnect({ onWalletConnect, ...buttonProperties }: IWalletConnect) {
+export function WalletConnect({ onWalletConnect, children = 'Connect Wallet', ...buttonProperties }: IWalletConnect) {
   return (
     <Button onClick={onWalletConnect} {...buttonProperties}>
-      Connect wallet
+      {children}
     </Button>
   );
 }
