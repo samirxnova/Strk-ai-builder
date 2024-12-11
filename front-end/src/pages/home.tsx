@@ -31,10 +31,9 @@ const AuditSection = React.lazy(() => import('@/components/sections/audit'));
 const CodeViewerSection = React.lazy(() => import('@/components/sections/code-viewer'));
 
 export default function HomePage() {
-  // eslint-disable-next-line unicorn/prefer-array-find
   const activeTemplates = chainConfig.templates.filter((template) => template.isActive);
 
-  const [activeTemplateName, setActiveTemplateName] = useState(activeTemplates[0].name);
+  const [activeTemplateName, setActiveTemplateName] = useState(activeTemplates[0]?.name || '');
   const [userPrompt, setUserPrompt] = useState('');
 
   const [predefinedPromptsState, dispatchPredefinedPrompts] = useReducer(
@@ -58,45 +57,28 @@ export default function HomePage() {
   );
 
   useEffect(() => {
-    async function getPredefinedPromptsByTemplate() {
+    const fetchPredefinedPrompts = async () => {
       try {
-        dispatchPredefinedPrompts({
-          state: EReducerState.reset,
-          payload: null
-        });
+        dispatchPredefinedPrompts({ state: EReducerState.reset, payload: null });
 
         const promptsResponse = await LlmService.getPromptByTemplate(
           activeTemplateName as TContractType
         );
 
-        if (!promptsResponse || !Array.isArray(promptsResponse)) {
-          dispatchPredefinedPrompts({
-            state: EReducerState.error,
-            payload: null
-          });
-
+        if (!Array.isArray(promptsResponse)) {
+          dispatchPredefinedPrompts({ state: EReducerState.error, payload: null });
           return;
         }
 
         setUserPrompt('');
-        dispatchPredefinedPrompts({
-          state: EReducerState.success,
-          payload: promptsResponse
-        });
-
-        console.log('promptsResponse', promptsResponse);
+        dispatchPredefinedPrompts({ state: EReducerState.success, payload: promptsResponse });
       } catch (error) {
-        dispatchPredefinedPrompts({
-          state: EReducerState.error,
-          payload: null
-        });
-
-        console.error('ERROR FETCHING PROMPTS BY TEMPLATE', error);
+        console.error('Error fetching prompts by template:', error);
+        dispatchPredefinedPrompts({ state: EReducerState.error, payload: null });
       }
-    }
+    };
 
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    getPredefinedPromptsByTemplate();
+    fetchPredefinedPrompts();
   }, [activeTemplateName]);
 
   const isGenerationLoading =
@@ -105,8 +87,9 @@ export default function HomePage() {
     auditContractState.isLoading;
 
   const isGenerationCompleted =
-    (generateContractState.isError || generateContractState.isSuccess) &&
-    (auditContractState.isError || auditContractState.isSuccess);
+    [generateContractState, compileContractState, auditContractState].every(
+      (state) => state.isSuccess || state.isError
+    );
 
   const creationSteps = [
     {
@@ -138,184 +121,98 @@ export default function HomePage() {
       step: 'Completed',
       isLoading: false,
       isSuccess: isGenerationCompleted,
-      isError:
-        generateContractState.isError && compileContractState.isError && auditContractState.isError,
+      isError: [generateContractState, compileContractState, auditContractState].every(
+        (state) => state.isError
+      ),
       isStepConnected: false
     }
   ];
 
-  async function initCreation() {
-    dispatchGenerateContract({
-      state: EReducerState.reset,
-      payload: null
-    });
-
-    dispatchCompileContract({
-      state: EReducerState.reset,
-      payload: null
-    });
-
-    dispatchAuditContract({
-      state: EReducerState.reset,
-      payload: null
-    });
-
-    const contractCode = await generateContract();
-
-    if (contractCode) {
-      await compileContract(contractCode);
-      await auditContract(contractCode);
-    }
-  }
-
-  async function generateContract() {
-    console.log('GENERATING CONTRACT');
-
+  const handleContractCreation = async () => {
     try {
-      dispatchGenerateContract({
-        state: EReducerState.start,
-        payload: null
-      });
+      dispatchGenerateContract({ state: EReducerState.reset, payload: null });
+      dispatchCompileContract({ state: EReducerState.reset, payload: null });
+      dispatchAuditContract({ state: EReducerState.reset, payload: null });
 
-      const contractCodeResponse = await LlmService.callCairoGeneratorLLM(
+      const contractCode = await generateContract();
+      if (contractCode) {
+        await compileContract(contractCode);
+        await auditContract(contractCode);
+      }
+    } catch (error) {
+      console.error('Error in contract creation process:', error);
+    }
+  };
+
+  const generateContract = async () => {
+    try {
+      dispatchGenerateContract({ state: EReducerState.start, payload: null });
+
+      const contractCode = await LlmService.callCairoGeneratorLLM(
         userPrompt,
         activeTemplateName as TContractType
       );
 
-      if (
-        contractCodeResponse === null ||
-        contractCodeResponse === undefined ||
-        typeof contractCodeResponse !== 'string'
-      ) {
-        dispatchGenerateContract({
-          state: EReducerState.error,
-          payload: null
-        });
-
-        console.error('ERROR GENERATING CONTRACT', contractCodeResponse);
-
-        return null;
+      if (typeof contractCode !== 'string') {
+        throw new Error('Invalid contract code response');
       }
 
-      dispatchGenerateContract({
-        state: EReducerState.success,
-        payload: contractCodeResponse
-      });
-
-      console.log('CONTRACT CODE', contractCodeResponse);
-
-      return contractCodeResponse;
+      dispatchGenerateContract({ state: EReducerState.success, payload: contractCode });
+      return contractCode;
     } catch (error) {
-      dispatchGenerateContract({
-        state: EReducerState.error,
-        payload: null
-      });
-
-      console.error('ERROR GENERATING CONTRACT', error);
+      console.error('Error generating contract:', error);
+      dispatchGenerateContract({ state: EReducerState.error, payload: null });
+      return null;
     }
+  };
 
-    return null;
-  }
-
-  async function compileContract(contractCode: string) {
-    console.log('COMPILING CONTRACT');
-
+  const compileContract = async (contractCode: string) => {
     try {
-      dispatchCompileContract({
-        state: EReducerState.start,
-        payload: null
-      });
+      dispatchCompileContract({ state: EReducerState.start, payload: null });
 
-      const compileContractResponse = await LlmService.buildCairoCode(contractCode);
+      const response = await LlmService.buildCairoCode(contractCode);
 
-      if (
-        compileContractResponse === null ||
-        compileContractResponse === undefined ||
-        !compileContractResponse.success
-      ) {
-        dispatchCompileContract({
-          state: EReducerState.error,
-          payload: null
-        });
-
-        console.error('ERROR COMPILING CONTRACT', compileContractResponse);
-
-        return;
+      if (!response?.success) {
+        throw new Error('Compilation failed');
       }
 
-      dispatchCompileContract({
-        state: EReducerState.success,
-        payload: compileContractResponse.artifact as IArtifact
-      });
-
-      console.log('COMPILATION RESPONSE', compileContractResponse);
+      dispatchCompileContract({ state: EReducerState.success, payload: response.artifact as IArtifact });
     } catch (error) {
-      dispatchCompileContract({
-        state: EReducerState.error,
-        payload: null
-      });
-
-      console.error('ERROR COMPILING CONTRACT', error);
+      console.error('Error compiling contract:', error);
+      dispatchCompileContract({ state: EReducerState.error, payload: null });
     }
-  }
+  };
 
-  async function auditContract(contractCode: string) {
-    console.log('AUDITING CONTRACT');
-
+  const auditContract = async (contractCode: string) => {
     try {
-      dispatchAuditContract({
-        state: EReducerState.start,
-        payload: null
-      });
+      dispatchAuditContract({ state: EReducerState.start, payload: null });
 
-      const auditContractResponse = await LlmService.callAuditorLLM(contractCode);
+      const auditResponse = await LlmService.callAuditorLLM(contractCode);
 
-      if (
-        auditContractResponse === null ||
-        auditContractResponse === undefined ||
-        !Array.isArray(auditContractResponse)
-      ) {
-        dispatchAuditContract({
-          state: EReducerState.error,
-          payload: null
-        });
-
-        console.error('ERROR AUDITING CONTRACT', auditContractResponse);
-
-        return;
+      if (!Array.isArray(auditResponse)) {
+        throw new Error('Invalid audit response');
       }
 
-      dispatchAuditContract({
-        state: EReducerState.success,
-        payload: auditContractResponse
-      });
-
-      console.log('AUDITION RESPONSE', auditContractResponse);
+      dispatchAuditContract({ state: EReducerState.success, payload: auditResponse });
     } catch (error) {
-      dispatchAuditContract({
-        state: EReducerState.error,
-        payload: null
-      });
-
-      console.error('ERROR AUDITING CONTRACT', error);
+      console.error('Error auditing contract:', error);
+      dispatchAuditContract({ state: EReducerState.error, payload: null });
     }
-  }
+  };
 
   return (
-    <div className='flex w-full max-w-[1140px] flex-col gap-y-5'>
+    <div className="flex w-full max-w-[1140px] flex-col gap-y-5">
       <BorderedContainer
-        className='bg-cover md:mt-16 md:bg-contain'
-        style={{
-          background: `url(${stepBackground}) no-repeat`
-        }}
+        className="bg-cover md:mt-16 md:bg-contain"
+        style={{ background: `url(${stepBackground}) no-repeat` }}
       >
-        <Suspense fallback={<Skeleton className='h-40 w-[95%] rounded-3xl' />}>
+        <Suspense fallback={<Skeleton className="h-40 w-[95%] rounded-3xl" />}>
           <HeaderSection chainsName={chainConfig.name} chainsDocumentationLink={chainConfig.docs} />
         </Suspense>
       </BorderedContainer>
 
       <BorderedContainer>
-        <Suspense fallback={<Skeleton className='h-60 w-[95%] rounded-3xl' />}>
+        <Suspense fallback={<Skeleton className="h-60 w-[95%] rounded-3xl" />}>
           <TemplatesSection
             chainsName={chainConfig.name}
             templates={chainConfig.templates}
@@ -324,58 +221,8 @@ export default function HomePage() {
           />
         </Suspense>
 
-        <Suspense fallback={<Skeleton className='h-60 w-[95%] rounded-3xl' />}>
-          <div className='flex w-full flex-col items-start'>
+        <Suspense fallback={<Skeleton className="h-60 w-[95%] rounded-3xl" />}>
+          <div className="flex w-full flex-col items-start">
             <PromptSection
               chainsName={chainConfig.name}
-              predefinedPrompts={predefinedPromptsState.prompts}
-              userPrompt={userPrompt}
-              setUserPrompt={setUserPrompt}
-            />
-
-            <div className='mt-5 flex w-full flex-col items-center justify-center gap-y-5 px-5 md:flex-row md:items-start md:justify-between md:px-10'>
-              <Button
-                disabled={isGenerationLoading}
-                onClick={() => initCreation()}
-                className='w-full md:w-60'
-              >
-                {isGenerationLoading ? (
-                  <div className='flex items-center gap-x-2.5'>
-                    <Loader2 className='animate-spin' />
-                    <span>Generating Smart Contract</span>
-                  </div>
-                ) : (
-                  <span>Generate Smart Contract</span>
-                )}
-              </Button>
-
-              <ContractCreationSteps steps={creationSteps} />
-            </div>
-          </div>
-        </Suspense>
-      </BorderedContainer>
-
-      {auditContractState.isSuccess && auditContractState.audit ? (
-        <BorderedContainer>
-          <Suspense fallback={<Skeleton className='h-60 w-[95%] rounded-3xl' />}>
-            <AuditSection chainsName={chainConfig.name} audit={auditContractState.audit} />
-          </Suspense>
-        </BorderedContainer>
-      ) : null}
-
-      {generateContractState.contractCode ? (
-        <BorderedContainer>
-          <Suspense fallback={<Skeleton className='h-60 w-[95%] rounded-3xl' />}>
-            <CodeViewerSection
-              chainsName={chainConfig.name}
-              smartContractCode={generateContractState.contractCode}
-              smartContractFileExtension={chainConfig.contractFileExtension}
-              contractArtifacts={isGenerationCompleted ? compileContractState.artifact : null}
-            />
-          </Suspense>
-        </BorderedContainer>
-      ) : null}
-    </div>
-  );
-}
-
+              predefinedPrompts={predefinedPromptsState.prompts
